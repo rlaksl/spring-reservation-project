@@ -32,4 +32,14 @@ public class User extends BaseEntity{
     @Column(name = "birth_date")
     private LocalDate birthDate; // DB DATE -> Java LocalDate 매핑
 
+    public static User createUser(String name, String email, String password, String phone, LocalDate birthDate) {
+        User user = new User();
+        user.setName(name);
+        user.setEmail(email);
+        user.setPassword(password);
+        user.setPhone(phone);
+        user.setBirthDate(birthDate);
+        return user;
+    }
+
 }

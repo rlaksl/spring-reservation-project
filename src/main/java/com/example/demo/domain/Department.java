@@ -23,4 +23,12 @@ public class Department {
     @Column(length = 500) // 길이 500 지정 (nullable = true가 기본값)
     private String description; // 진료과 설명
 
+    // 정적 팩토리 메서드: 객체 생성을 안전하게 담당
+    public static Department createDepartment(String deptName, String description) {
+        Department department = new Department(); // 같은 클래스 내부에서는 protected 접근 가능
+        department.setDeptName(deptName);
+        department.setDescription(description);
+        return department;
+    }
+
 }
