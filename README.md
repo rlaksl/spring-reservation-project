@@ -40,17 +40,25 @@
 ### 1. 진료과별 의사 조회
 - 진료과 선택 시 소속 의사 목록 표시
 - 의사별 휴무일 정보 제공
+- 메인 화면
+<img src="https://github.com/user-attachments/assets/1311ac22-65b3-46c0-9283-3fb8cd0ebdb2" alt="image" width="700" />
+
 
 ### 2. 예약 가능 시간 조회
 - 선택한 날짜의 예약 가능한 시간대 표시 (30분 단위)
 - 평일: 09:00~18:00 (점심시간 13:00~14:00 제외)
 - 토요일: 09:00~14:00 (점심시간 없음)
 - 일요일 및 의사 개인 휴무일 자동 제외
+ <img src="https://github.com/user-attachments/assets/21a300a2-4f11-4dff-baf8-434c241cc87b" alt="image" width="700" />
+
 
 ### 3. 예약 생성 및 중복 방지
 - 실시간 예약 가능 시간 확인
 - 중복 예약 자동 차단
 - 예약 완료 시 예약 정보 확인창 제공
+  
+<img src="https://github.com/user-attachments/assets/682cfcfd-3b77-4dab-adad-794fba4df51d" alt="image" width="700" />
+
 
 ---
 
