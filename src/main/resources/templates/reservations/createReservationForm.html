@@ -2,28 +2,51 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>병원 예약 시스템</title>
+    <link rel="stylesheet" href="/css/reservation.css">
 </head>
 <body>
-    <h2>병원 진료 예약</h2>
-    <form id="reservationForm">
-        <div>
-            <label for="userId">환자 ID: </label>
-            <input type="number" id="userId" placeholder="1">
-        </div>
-        <div>
-            <label for="doctorId">의사 ID: </label>
-            <input type="number" id="doctorId" placeholder="1">
-        </div>
-        <div>
-            <label for="reservationTime">예약 시간: </label>
-            <input type="text" id="reservationTime" placeholder="2025-12-05">
-        </div>
-        <button type="submit">예약하기</button>
-    </form>
-    <div id="result" style="margin-top: 15px;"></div>
+<div class="container">
+    <h1>병원 예약 시스템</h1>
 
-    <script src="/js/reservation.js"></script>
+    <!-- 1. 진료과 선택 -->
+    <div class="section">
+        <div class="section-title">1. 진료과를 선택하세요</div>
+        <select id="departmentSelect">
+            <option value="">-- 진료과를 선택하세요 --</option>
+            <!-- JavaScript로 동적으로 채워질 예정 -->
+        </select>
+    </div>
 
+    <!-- 2. 의사 선택 -->
+    <div class="section hidden" id="doctorSection">
+        <div class="section-title">2. 의사를 선택하세요</div>
+        <div class="doctor-list" id="doctorList"></div>
+    </div>
+
+    <!-- 3. 날짜 선택 -->
+    <div class="section hidden" id="dateSection">
+        <div class="section-title">3. 예약 날짜를 선택하세요</div>
+        <input type="date" id="dateInput" disabled>
+    </div>
+
+    <!-- 4. 시간 선택 -->
+    <div class="section hidden" id="timeSection">
+        <div class="section-title">4. 예약 시간을 선택하세요</div>
+        <div class="time-slots" id="timeSlots"></div>
+    </div>
+
+    <!-- 5. 예약하기 버튼 -->
+    <div class="section">
+        <button class="submit-button" id="submitButton" disabled>예약하기</button>
+    </div>
+
+    <!-- 결과 메시지 -->
+    <div id="result"></div>
+</div>
+
+<!-- TypeScript 컴파일된 JavaScript 파일 -->
+<script src="/js/reservation.js"></script>
 </body>
 </html>

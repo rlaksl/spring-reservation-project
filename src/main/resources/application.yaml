@@ -20,3 +20,15 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.OracleDialect # Oracle 방언 설정
+
+hospital:
+  schedule:
+    weekday:
+      start-time: "09:00"
+      end-time: "18:00"
+    saturday:
+      start-time: "09:00"
+      end-time: "14:00"
+    lunch:
+      start-time: "13:00"
+      end-time: "14:00"

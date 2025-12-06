@@ -4,12 +4,11 @@ import com.example.demo.domain.Doctor;
 import com.example.demo.domain.Reservation;
 import com.example.demo.domain.User;
 import com.example.demo.repository.DoctorRepository;
-import com.example.demo.repository.DoctorScheduleRepository;
 import com.example.demo.repository.ReservationRepository;
 import com.example.demo.repository.UserRepository;
-import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,7 +23,6 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
     private final DoctorRepository doctorRepository;
-    private final DoctorScheduleRepository doctorScheduleRepository;
 
     // 진료 예약 생성
     @Transactional // 데이터 변경 트랜잭션 적용
@@ -42,10 +40,6 @@ public class ReservationService {
 
         // 예약 엔티티 생성 및 저장
         Reservation reservation = Reservation.createReservation(user, doctor, reservationTime);
-        reservation.setUser(user);
-        reservation.setDoctor(doctor);
-        reservation.setReservationDatetime(reservationTime);
-        reservation.setStatus("PENDING"); // 초기 상태는 PENDING
 
         reservationRepository.save(reservation);
         return reservation.getId();
@@ -68,7 +62,5 @@ public class ReservationService {
         if (!duplicateReservations.isEmpty()) {
             throw new IllegalStateException("이미 예약된 시간입니다.");
         }
-
     }
-
 }

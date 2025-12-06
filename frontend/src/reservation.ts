@@ -1,81 +1,479 @@
-// 1. 서버로 보낼 데이터 타임(Interface) 정의
-// 백엔드 API로 보낼 때 데이터의 구조를 정의
-interface ReservationFormData {
+// ===== 1. 타입 정의 (Interface)
+// 진료과 데이터 타입
+interface Department {
+  id: number;
+  deptName: string;
+  description: string;
+}
+
+// 의사 데이터 타입
+interface Doctor {
+  id: number;
+  name: string;
+  dayOff: string;
+  department: {
+    id: number;
+    deptName: string;
+  };
+}
+
+// 예약 요청 데이터 타입
+interface ReservationRequest {
   userId: number;
   doctorId: number;
   reservationTime: string;
 }
 
-// 2. 예약 생성 API 호출 함수
-// 서버로 HTTP POST 요청을 보냄
-// @Param data - 예약 폼에서 받은 데이터 (ReservationFormData 타입)
-// @ returns 예약 성공/ 실패 메시지
-async function createReservation(data: ReservationFormData): Promise<string> {
+// ===== 2. 전역 상태 관리 (선택된 값들을 저장)
+let selectedDepartmentId: number | null = null;
+let selectedDoctorId: number | null = null;
+let selectedDate: string | null = null;
+let selectedTime: string | null = null;
 
-  // API 쿼리 파라미터 생성 | 예: userId=1&doctorId=1&reservationTime=...
-  const params = new URLSearchParams({
-    userId: data.userId.toString(),
-    doctorId: data.doctorId.toString(),
-    reservationTime: data.reservationTime
-  });
+// ===== 3. API 호출 함수들
+// 진료과 목록 가져오기
+async function fetchDepartments(): Promise<Department[]> {
+  try {
+    const response = await fetch('/api/v1/departments');
 
-  // API 엔드포인트 URL 조합
-  const url = `/api/v1/reservations?${params.toString()}`;
+    if (!response.ok) {
+      throw new Error('진료과 목록을 가져오는데 실패했습니다.');
+    }
 
-  try { // fetch 함수로 HTTP POST 요청
-    const response = await fetch(url, {
+    const departments: Department[] = await response.json();
+    return departments;
+
+  } catch (error) {
+    console.error('진료과 조회 오류:', error);
+    return [];
+  }
+}
+
+// 특정 진료과의 의사 목록 가져오기
+async function fetchDoctors(departmentId: number): Promise<Doctor[]> {
+  try {
+    const response = await fetch(`/api/v1/departments/${departmentId}/doctors`);
+
+    if (!response.ok) {
+      throw new Error('의사 목록을 가져오는데 실패했습니다.');
+    }
+
+    const doctors: Doctor[] = await response.json();
+    return doctors;
+
+  } catch (error) {
+    console.error('의사 조회 오류:', error);
+    return [];
+  }
+}
+
+// 특정 의사의 예약 가능 시간 가져오기
+async function fetchAvailableSlots(doctorId: number, date: string): Promise<string[]> {
+  try {
+    const response = await fetch(`/api/v1/doctors/${doctorId}/availability?date=${date}`);
+
+    if (!response.ok) {
+      throw new Error('예약 가능 시간을 가져오는데 실패했습니다.');
+    }
+
+    const slots: string[] = await response.json();
+    return slots;
+
+  } catch (error) {
+    console.error('예약 가능 시간 조회 오류:', error);
+    return [];
+  }
+}
+
+// 예약 생성하기
+async function createReservation(data: ReservationRequest): Promise<string> {
+  try {
+    const params = new URLSearchParams({
+      userId: data.userId.toString(),
+      doctorId: data.doctorId.toString(),
+      reservationTime: data.reservationTime
+    });
+
+    const response = await fetch(`/api/v1/reservations?${params.toString()}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
 
-    if (response.ok) { // 성공
+    if (response.ok) {
       const reservationId = await response.text();
-      return `예약 성공. 예약 번호: ${reservationId}`;
-    } else if(response.status === 400) {
-      return `이미 예약된 시간입니다.`;
+      return `예약 성공! 예약 번호: ${reservationId}`;
+    } else if (response.status === 400) {
+      return '이미 예약된 시간입니다.';
     } else {
-      return `서버 오류: ${response.status} ${response.statusText}`;
+      return `서버 오류: ${response.status}`;
     }
+
   } catch (error) {
-      return `네트워크 오류 발생`;
+    console.error('예약 생성 오류:', error);
+    return '네트워크 오류가 발생했습니다.';
   }
 }
 
-// 3. 웹 페이지(DOM) 이벤트 처리
-//HTML 문서가 완전히 로드되면 실행되어 폼 제출 이벤트를 감지하고 API 호출
-document.addEventListener('DOMContentLoaded', () => {
-  // 폼과 결과를 표시할 영역ㅇㄹ HTML ID로 찾음
-  const form = document.getElementById('reservationForm') as HTMLFormElement;
-  const resultDiv = document.getElementById('result') as HTMLDivElement;
+// ===== 4. UI 업데이트 함수들
+// 진료과 드롭다운 채우기
+function populateDepartments(departments: Department[]): void {
+  const select = document.getElementById('departmentSelect') as HTMLSelectElement;
 
-  if(form) {
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault(); // 새로고침 방지
-
-      // 입력창에서 값을 가져옴
-      const userIdInput = document.getElementById('userId') as HTMLInputElement;
-      const doctorIdInput = document.getElementById('doctorId') as HTMLInputElement;
-      const timeInput = document.getElementById('reservationTime') as HTMLInputElement;
-
-      // 값이 다 있는지 확인
-      if (!userIdInput.value || !doctorIdInput.value || !timeInput.value) {
-        resultDiv.innerText = "모든 값을 입력해주세요.";
-        return;
-      }
-      const data: ReservationFormData = {
-        userId: parseInt(userIdInput.value),
-        doctorId: parseInt(doctorIdInput.value),
-        reservationTime: timeInput.value
-      };
-
-      resultDiv.innerText = '예약 처리 중';
-
-      // 결과를 기다렸다가 화면에 표시
-      const result = await createReservation(data);
-      resultDiv.innerText = result;
-
-    });
+  // 기존 옵션 제거 (첫 번째 "선택하세요" 옵션은 유지)
+  while (select.options.length > 1) {
+    select.remove(1);
   }
+
+  // 새로운 옵션 추가
+  departments.forEach(dept => {
+    const option = document.createElement('option');
+    option.value = dept.id.toString();
+    option.textContent = dept.deptName;
+    select.appendChild(option);
+  });
+}
+
+// 의사 카드 목록 생성
+function populateDoctors(doctors: Doctor[]): void {
+  const doctorList = document.getElementById('doctorList') as HTMLDivElement;
+
+  // 기존 카드 전체 제거
+  doctorList.innerHTML = '';
+  // 각 의사마다 카드 생성
+  doctors.forEach(doctor => {
+    const card = document.createElement('div');
+    card.className = 'doctor-card';
+    card.dataset.doctorId = doctor.id.toString();
+
+    // 카드 내용
+    card.innerHTML = `
+      <div class="doctor-name">${doctor.name}</div>
+      <div class="doctor-info">휴무: ${translateDayOff(doctor.dayOff)}</div>
+    `;
+
+    // 클릭 이벤트: 의사 선택
+    card.addEventListener('click', () => selectDoctor(doctor.id));
+
+    doctorList.appendChild(card);
+  });
+}
+
+// 시간 슬롯 버튼 생성
+function populateTimeSlots(slots: string[]): void {
+  const timeSlots = document.getElementById('timeSlots') as HTMLDivElement;
+
+  // 기존 버튼 전체 제거
+  timeSlots.innerHTML = '';
+
+  if (slots.length === 0) {
+    // 예약 가능 시간이 없으면 안내 메시지
+    timeSlots.innerHTML = '<p style="color: #999;">예약 가능한 시간이 없습니다.</p>';
+    return;
+  }
+
+  // 각 시간마다 버튼 생성
+  slots.forEach(slot => {
+    const button = document.createElement('div');
+    button.className = 'time-slot';
+    button.textContent = slot;
+    button.dataset.time = slot;
+
+    // 클릭 이벤트: 시간 선택
+    button.addEventListener('click', () => selectTime(slot));
+
+    timeSlots.appendChild(button);
+  });
+}
+
+// ===== 5. 선택 처리 함수들
+// 진료과 선택 처리
+async function handleDepartmentChange(departmentId: string): Promise<void> {
+  if (!departmentId) {
+    // "선택하세요" 선택 시 초기화
+    resetDoctorSection();
+    return;
+  }
+
+  selectedDepartmentId = parseInt(departmentId);
+
+  // 의사 목록 가져오기
+  const doctors = await fetchDoctors(selectedDepartmentId);
+
+  if (doctors.length > 0) {
+    populateDoctors(doctors);
+    showSection('doctorSection');
+  } else {
+    alert('해당 진료과에 의사가 없습니다.');
+  }
+}
+
+// 의사 선택 처리
+function selectDoctor(doctorId: number): void {
+  selectedDoctorId = doctorId;
+
+  // 모든 의사 카드에서 selected 클래스 제거
+  const allCards = document.querySelectorAll('.doctor-card');
+  allCards.forEach(card => card.classList.remove('selected'));
+
+  // 선택한 카드에만 selected 클래스 추가
+  const selectedCard = document.querySelector(`[data-doctor-id="${doctorId}"]`);
+  if (selectedCard) {
+    selectedCard.classList.add('selected');
+  }
+
+  // 날짜 입력 활성화
+  const dateInput = document.getElementById('dateInput') as HTMLInputElement;
+  dateInput.disabled = false;
+  dateInput.min = getTodayString();
+
+  showSection('dateSection');
+
+  // 시간 섹션은 숨김 (날짜 선택 전까지)
+  hideSection('timeSection');
+  selectedDate = null;
+  selectedTime = null;
+  updateSubmitButton();
+}
+
+// 날짜 선택 처리
+async function handleDateChange(date: string): Promise<void> {
+  if (!date || !selectedDoctorId) {
+    return;
+  }
+
+  selectedDate = date;
+
+  // 예약 가능 시간 가져오기
+  const slots = await fetchAvailableSlots(selectedDoctorId, selectedDate);
+
+  populateTimeSlots(slots);
+  showSection('timeSection');
+
+  // 시간 선택 초기화
+  selectedTime = null;
+  updateSubmitButton();
+}
+
+// 시간 선택 처리
+function selectTime(time: string): void {
+  selectedTime = time;
+
+  // 모든 시간 버튼에서 selected 클래스 제거
+  const allSlots = document.querySelectorAll('.time-slot');
+  allSlots.forEach(slot => slot.classList.remove('selected'));
+
+  // 선택한 버튼에만 selected 클래스 추가
+  const selectedSlot = document.querySelector(`[data-time="${time}"]`);
+  if (selectedSlot) {
+    selectedSlot.classList.add('selected');
+  }
+
+  updateSubmitButton();
+}
+
+// ===== 6. 예약하기 버튼 처리
+async function handleSubmit(): Promise<void> {
+  // 모든 값이 선택되었는지 확인
+  if (!selectedDoctorId || !selectedDate || !selectedTime) {
+    alert('모든 항목을 선택해주세요.');
+    return;
+  }
+
+  // 예약 시간 ISO 형식으로 변환
+  const reservationTime = `${selectedDate}T${selectedTime}`;
+
+  const reservationData: ReservationRequest = {
+    userId: 1,
+    doctorId: selectedDoctorId,
+    reservationTime: reservationTime
+  };
+
+  // 예약 API 호출
+  const result = await createReservation(reservationData);
+
+  // 결과 표시
+  showResult(result, result.includes('성공'));
+
+  // 성공 시 폼 초기화
+  if (result.includes('성공')) {
+    // 선택된 정보 가져오기
+    const deptName = getDepartmentName(selectedDepartmentId!);
+    const doctorName = getDoctorName(selectedDoctorId);
+    const dateFormatted = formatDate(selectedDate!);
+    const reservationId = result.match(/\d+/)?.[0] || '?';
+
+    // 확인 창 메시지 생성
+    const message = `
+      예약이 완료되었습니다.
+      ━━━━━━━━━━━━━━━━━━━━━━━━━
+      예약 정보
+      ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      진료과: ${deptName}
+      담당의: ${doctorName}
+      날짜: ${dateFormatted}
+      시간: ${selectedTime}
+      예약번호: ${reservationId}
+
+      ━━━━━━━━━━━━━━━━━━━━━━━━━
+    `;
+
+    // 확인 창 표시
+    alert(message);
+
+    // 확인 버튼 누르면 폼 초기화
+    resetForm();
+  }
+}
+
+// ===== 7. UI 헬퍼 함수들
+// 섹션 표시
+function showSection(sectionId: string): void {
+  const section = document.getElementById(sectionId);
+  if (section) {
+    section.classList.remove('hidden');
+  }
+}
+
+// 섹션 숨김
+function hideSection(sectionId: string): void {
+  const section = document.getElementById(sectionId);
+  if (section) {
+    section.classList.add('hidden');
+  }
+}
+
+// 의사 섹션 이후 초기화
+function resetDoctorSection(): void {
+  hideSection('dateSection');
+  hideSection('timeSection');
+
+  const dateInput = document.getElementById('dateInput') as HTMLInputElement;
+  dateInput.disabled = true;
+  dateInput.value = '';
+
+  selectedDoctorId = null;
+  selectedDate = null;
+  selectedTime = null;
+  updateSubmitButton();
+}
+
+// 전체 폼 초기화
+function resetForm(): void {
+  // 드롭다운 초기화
+  const select = document.getElementById('departmentSelect') as HTMLSelectElement;
+  select.value = '';
+
+  // 모든 섹션 숨김
+  hideSection('doctorSection');
+  hideSection('dateSection');
+  hideSection('timeSection');
+
+  // 선택값 초기화
+  selectedDepartmentId = null;
+  selectedDoctorId = null;
+  selectedDate = null;
+  selectedTime = null;
+
+  // 버튼 비활성화
+  updateSubmitButton();
+
+  // 결과 메시지 제거
+  const resultDiv = document.getElementById('result') as HTMLDivElement;
+  resultDiv.innerHTML = '';
+}
+
+// 예약하기 버튼 활성화/비활성화
+function updateSubmitButton(): void {
+  const button = document.getElementById('submitButton') as HTMLButtonElement;
+
+  // 모든 값이 선택되었으면 활성화
+  if (selectedDoctorId && selectedDate && selectedTime) {
+    button.disabled = false;
+  } else {
+    button.disabled = true;
+  }
+}
+
+// 결과 메시지 표시
+function showResult(message: string, isSuccess: boolean): void {
+  const resultDiv = document.getElementById('result') as HTMLDivElement;
+  resultDiv.textContent = message;
+  resultDiv.className = isSuccess ? 'result success' : 'result error';
+}
+
+// 오늘 날짜 문자열 반환 (YYYY-MM-DD 형식)
+function getTodayString(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// 휴무일 영어 → 한글 변환
+function translateDayOff(dayOff: string): string {
+  const days: { [key: string]: string } = {
+    'MONDAY': '월요일',
+    'TUESDAY': '화요일',
+    'WEDNESDAY': '수요일',
+    'THURSDAY': '목요일',
+    'FRIDAY': '금요일',
+    'SATURDAY': '토요일',
+    'SUNDAY': '일요일'
+  };
+  return days[dayOff] || dayOff;
+}
+
+// 진료과 이름 가져오기 헬퍼 함수
+function getDepartmentName(deptId: number): string {
+  const select = document.getElementById('departmentSelect') as HTMLSelectElement;
+  const option = select.querySelector(`option[value="${deptId}"]`);
+  return option?.textContent || '알 수 없음';
+}
+
+// 의사 이름 가져오기 헬퍼 함수
+function getDoctorName(doctorId: number): string {
+  const card = document.querySelector(`[data-doctor-id="${doctorId}"]`);
+  const nameDiv = card?.querySelector('.doctor-name');
+  return nameDiv?.textContent || '알 수 없음';
+}
+
+// 날짜 포맷팅 헬퍼 함수
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+  const dayOfWeek = days[date.getDay()];
+  return `${dateStr} (${dayOfWeek})`;
+}
+
+// ===== 8. 초기화 (페이지 로드 시 실행)
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('페이지 로드 완료');
+
+  // 진료과 목록 가져와서 드롭다운 채우기
+  const departments = await fetchDepartments();
+  populateDepartments(departments);
+
+  // 진료과 선택 이벤트 연결
+  const departmentSelect = document.getElementById('departmentSelect') as HTMLSelectElement;
+  departmentSelect.addEventListener('change', (e) => {
+    const target = e.target as HTMLSelectElement;
+    handleDepartmentChange(target.value);
+  });
+
+  // 날짜 선택 이벤트 연결
+  const dateInput = document.getElementById('dateInput') as HTMLInputElement;
+  dateInput.addEventListener('change', (e) => {
+    const target = e.target as HTMLInputElement;
+    handleDateChange(target.value);
+  });
+
+  // 예약하기 버튼 이벤트 연결
+  const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
+  submitButton.addEventListener('click', handleSubmit);
+
+  console.log('이벤트 연결 완료');
 });
