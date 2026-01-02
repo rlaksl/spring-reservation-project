@@ -6,11 +6,8 @@
 
 환자가 진료과와 의사를 선택하고, 예약 가능한 시간을 확인하여 진료 예약을 할 수 있는 시스템입니다.
 
-### 개발 기간
-- 2025.11.30 - 2025.12.06 (일주일)
-
-### 개발 인원
-- (개인 프로젝트)
+### 개발 기간 및 인원
+- 2025.11.30 - 2025.12.06 | 개인 프로젝트
 
 ---
 
@@ -26,6 +23,7 @@
 - Oracle 21c
 
 ### Frontend
+- Thymeleaf (Template Engine)
 - TypeScript 5.9.3
 - HTML5, CSS3
 - Vanilla JavaScript
@@ -67,13 +65,13 @@
 ### 계층 구조
 ```
 ┌─────────────────────────────────┐
-│         Presentation            │  ← Controller, HTML/CSS/TS
+│ Presentation                    │  ← Controller, Thymeleaf, HTML/CSS/TS
 ├─────────────────────────────────┤
-│          Business Logic         │  ← Service
+│ Business Logic                  │  ← Service
 ├─────────────────────────────────┤
-│        Data Access              │  ← Repository (JPA)
+│ Data Access                     │  ← Repository (JPA)
 ├─────────────────────────────────┤
-│          Database               │  ← Oracle
+│ Database                        │  ← Oracle
 └─────────────────────────────────┘
 ```
 
@@ -272,7 +270,13 @@ Response: List<String> (예: ["09:00", "09:30", ...])
 ### 예약 생성
 ```
 POST /api/v1/reservations
-Params: userId, doctorId, reservationTime
+Content-Type: application/x-www-form-urlencoded
+
+Parameters (Query String 또는 Form Data):
+- userId: Long (환자 ID)
+- doctorId: Long (의사 ID)
+- reservationTime: String (예약 시간, ISO 형식: "2025-01-15T09:00")
+
 Response: Long (예약 ID)
 ```
 
